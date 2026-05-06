@@ -1,0 +1,46 @@
+site_name: Panaxis Hosting Playbook
+site_description: Reseller webhosting operations for panaxis-ltd.ch at hosttech.ch
+site_url: https://steinerm55.github.io/panaxis-hosting/
+
+repo_name: steinerm55/panaxis-hosting
+repo_url: https://github.com/steinerm55/panaxis-hosting
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - search.suggest
+
+nav:
+  - Home: index.md
+  - Customer Setup Recipe: customer-setup-recipe.md
+  - Automation Guide: automation.md
+
+markdown_extensions:
+  - tables
+  - admonitions
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - toc:
+      permalink: true
