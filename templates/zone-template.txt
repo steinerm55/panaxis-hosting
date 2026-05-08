@@ -2,8 +2,9 @@
 ; Import via: DNS Zone > Import Zone File
 ;
 ; Replace before importing:
-;   DOMAIN    — customer domain (e.g. hallo-car.ch)
-;   SERVERIP  — Plesk server IP (e.g. 185.178.193.173)
+;   DOMAIN      — customer domain (e.g. hallo-car.ch)
+;   SERVERIP    — Plesk server IP (e.g. 185.178.193.173)
+;   CUSTOMERSLUG — domain with dots as hyphens (e.g. hallo-car-ch)
 ;
 $ORIGIN DOMAIN.
 @ 3600 IN A SERVERIP
@@ -12,3 +13,9 @@ mail 3600 IN CNAME DOMAIN.
 webmail 3600 IN CNAME DOMAIN.
 @ 3600 IN MX 10 DOMAIN.
 @ 3600 IN TXT "v=spf1 a mx -all"
+_domainkey 3600 IN TXT "o=-"
+; DKIM: uses CNAME delegation to panaxis-ltd.ch (reseller panel has 255-byte TXT limit)
+; 1. Enable DKIM in Plesk (Mail Settings), copy the public key
+; 2. Add TXT record in myhosttech.eu: CUSTOMERSLUG._domainkey.panaxis-ltd.ch → full DKIM key
+; 3. Import the CNAME below via this template:
+default._domainkey 3600 IN CNAME CUSTOMERSLUG._domainkey.panaxis-ltd.ch.

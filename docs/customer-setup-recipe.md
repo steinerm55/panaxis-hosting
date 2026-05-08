@@ -121,8 +121,9 @@ dig <customer.domain> TXT +short
 
 | Type | Name | Value | Purpose |
 |------|------|-------|---------|
+| TXT | `_domainkey` | `o=-` | DKIM policy (outbound signing only) |
+| CNAME | `default._domainkey` | `<customer-slug>._domainkey.panaxis-ltd.ch` | DKIM key (via CNAME delegation, see Step 8) |
 | TXT | `_dmarc` | `v=DMARC1; p=quarantine; rua=mailto:postmaster@<customer.domain>` | DMARC policy |
-| TXT | `default._domainkey` | (from Plesk DKIM setup) | DKIM signing |
 | AAAA | `@` | `<ipv6-address>` | IPv6 support |
 
 > **Use CNAMEs, not A records** for subdomains (`www`, `mail`, `webmail`). If the server IP changes, you only update the root A record.
@@ -202,9 +203,36 @@ Auto-renewal is enabled by default. Certificate renews every 90 days.
 ### Configure email security
 
 1. **SPF** — already set in Step 5
-2. **DKIM** — Plesk → Mail → Mail Settings → enable DKIM signing
-   - Since DNS is external, copy the DKIM TXT record value from Plesk
-   - Add it as a TXT record (`default._domainkey`) in the reseller DNS panel
+2. **DKIM** — requires CNAME delegation for reseller domains (reseller panel has a 255-byte TXT limit that blocks 2048-bit DKIM keys)
+
+   **In Plesk:**
+   1. Go to Mail → Mail Settings → enable **DKIM signing**
+   2. Click **"How to configure external DNS"** to get the DKIM public key
+   3. Copy the key value (the `p=...` part)
+
+   **CNAME delegation setup:**
+
+   The DKIM TXT record is too long for the reseller DNS panel. Instead, host it on panaxis-ltd.ch (end-user zone) and point to it with a CNAME.
+
+   Use `<customer-slug>` = domain with dots replaced by hyphens (e.g. `hallo-car.ch` → `hallo-car-ch`).
+
+   | Where | Type | Name | Value |
+   |-------|------|------|-------|
+   | myhosttech.eu (panaxis-ltd.ch) | TXT | `<customer-slug>._domainkey` | Full DKIM key from Plesk |
+   | Reseller panel (`<customer.domain>`) | CNAME | `default._domainkey` | `<customer-slug>._domainkey.panaxis-ltd.ch` |
+   | Reseller panel (`<customer.domain>`) | TXT | `_domainkey` | `o=-` |
+
+   > **Why myhosttech.eu?** The myhosttech.eu DNS Editor accepts long TXT records and auto-splits them into multi-string format. Neither the reseller panel nor the DNS API support TXT records >255 bytes.
+
+   **Verify the full chain:**
+   ```bash
+   # CNAME points to panaxis-ltd.ch
+   dig default._domainkey.<customer.domain> CNAME +short
+
+   # Full resolution returns DKIM key
+   dig @1.1.1.1 default._domainkey.<customer.domain> TXT +short
+   ```
+
 3. **DMARC** — add TXT record from Step 5 (optional records)
 
 ### Webmail access
@@ -357,7 +385,11 @@ Reseller zones are mastered on `ns1.rrpproxy.net` with SOA email `tech.rrpproxy.
 | SSL certificate error | DNS not yet propagated when Let's Encrypt tried | Wait for DNS, retry in Plesk SSL settings |
 | SSL cert name mismatch | Old/wrong cert still active | Reissue Let's Encrypt in Plesk |
 | Email bouncing | MX points to wrong server | Verify MX points to `<customer.domain>` (Plesk mail) not `mail1.hosttech.eu` |
-| Email marked as spam | Missing DKIM/DMARC | Enable DKIM in Plesk, add DKIM TXT record to DNS, add DMARC record |
+| Email marked as spam | Missing DKIM/DMARC | Enable DKIM in Plesk, set up CNAME delegation (Step 8), add DMARC record |
+| DKIM TXT too long for reseller panel | 2048-bit key exceeds 255-byte limit | Use CNAME delegation via panaxis-ltd.ch (Step 8) |
+| DKIM TXT too long for API | WAF blocks payloads >255 bytes | Add via myhosttech.eu web UI instead (auto-splits long TXT) |
+| Plesk rejects domain ("resolves to another server") | A record points to old IP | Update A record to Plesk server IP first, then add domain in Plesk |
+| Let's Encrypt fails (AAAA record) | AAAA record points to unassigned IPv6 | Delete the AAAA record, then retry SSL |
 | FTP timeout | Wrong port or firewall | Use port 21 (FTP) or 22 (SFTP), check Plesk firewall |
 | "403 Forbidden" on website | Empty `httpdocs/` or wrong permissions | Upload `index.html`/`index.php`, check file permissions (644/755) |
 | WordPress white screen | PHP memory limit or plugin conflict | Plesk → PHP Settings → increase `memory_limit` |
