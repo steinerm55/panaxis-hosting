@@ -1,0 +1,14 @@
+; Zone template for hosttech reseller panel
+; Import via: DNS Zone > Import Zone File
+;
+; Replace before importing:
+;   DOMAIN    — customer domain (e.g. hallo-car.ch)
+;   SERVERIP  — Plesk server IP (e.g. 185.178.193.173)
+;
+$ORIGIN DOMAIN.
+@ 3600 IN A SERVERIP
+www 3600 IN CNAME DOMAIN.
+mail 3600 IN CNAME DOMAIN.
+webmail 3600 IN CNAME DOMAIN.
+@ 3600 IN MX 10 DOMAIN.
+@ 3600 IN TXT "v=spf1 a mx -all"
