@@ -1,0 +1,38 @@
+name: Deploy to github-dev (self-hosted)
+
+# Rebuilds the MkDocs site container on the self-hosted runner (the github-dev
+# libvirt VM) and (re)serves it on http://github-dev:8080. Runs alongside the
+# GitHub Pages workflow, which continues to publish to steinerm55.github.io.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-github-dev
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build site image
+        run: |
+          printf 'FROM squidfunk/mkdocs-material:9 AS build\nWORKDIR /docs\nCOPY . .\nRUN mkdocs build --strict\nFROM nginx:alpine\nCOPY --from=build /docs/site /usr/share/nginx/html\n' | docker build -t panaxis-hosting:local -f - .
+
+      - name: (Re)start container on :8080
+        run: |
+          docker rm -f panaxis-hosting 2>/dev/null || true
+          docker run -d --name panaxis-hosting --restart unless-stopped -p 8080:80 panaxis-hosting:local
+
+      - name: Smoke test
+        run: |
+          for i in $(seq 1 15); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/ || true)
+            [ "$code" = "200" ] && { echo "site OK (HTTP $code)"; exit 0; }
+            sleep 1
+          done
+          echo "site did not return 200 (last: ${code:-none})"; exit 1
